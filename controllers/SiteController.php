@@ -2,127 +2,53 @@
 
 namespace app\controllers;
 
-use Yii;
-use yii\filters\AccessControl;
+use yii\db\Exception;
 use yii\web\Controller;
+use app\services\ImageService;
+use app\requests\ImageDecisionRequest;
 use yii\web\Response;
-use yii\filters\VerbFilter;
-use app\models\LoginForm;
-use app\models\ContactForm;
+use Yii;
 
+/**
+ * SiteController handles the main page and image decisions.
+ */
 class SiteController extends Controller
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function behaviors()
+    private ImageService $imageService;
+
+    public function __construct($id, $module, ImageService $imageService, $config = [])
     {
-        return [
-            'access' => [
-                'class' => AccessControl::class,
-                'only' => ['logout'],
-                'rules' => [
-                    [
-                        'actions' => ['logout'],
-                        'allow' => true,
-                        'roles' => ['@'],
-                    ],
-                ],
-            ],
-            'verbs' => [
-                'class' => VerbFilter::class,
-                'actions' => [
-                    'logout' => ['post'],
-                ],
-            ],
-        ];
+        $this->imageService = $imageService;
+        parent::__construct($id, $module, $config);
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function actions()
-    {
-        return [
-            'error' => [
-                'class' => 'yii\web\ErrorAction',
-            ],
-            'captcha' => [
-                'class' => 'yii\captcha\CaptchaAction',
-                'fixedVerifyCode' => YII_ENV_TEST ? 'testme' : null,
-            ],
-        ];
-    }
-
-    /**
-     * Displays homepage.
+     * Displays the main page with a random image.
      *
      * @return string
      */
-    public function actionIndex()
+    public function actionIndex(): string
     {
-        return $this->render('index');
+        $imageId = $this->imageService->getNextImageId();
+        return $this->render('index', ['imageId' => $imageId]);
     }
 
     /**
-     * Login action.
+     * Handles the decision (approve/reject) for the displayed image.
      *
-     * @return Response|string
-     */
-    public function actionLogin()
-    {
-        if (!Yii::$app->user->isGuest) {
-            return $this->goHome();
-        }
-
-        $model = new LoginForm();
-        if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
-        }
-
-        $model->password = '';
-        return $this->render('login', [
-            'model' => $model,
-        ]);
-    }
-
-    /**
-     * Logout action.
-     *
+     * @param int $id
+     * @param string $decision
      * @return Response
+     * @throws Exception
      */
-    public function actionLogout()
+    public function actionDecision(int $id, string $decision): Response
     {
-        Yii::$app->user->logout();
-
-        return $this->goHome();
-    }
-
-    /**
-     * Displays contact page.
-     *
-     * @return Response|string
-     */
-    public function actionContact()
-    {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
-
-            return $this->refresh();
+        $request = new ImageDecisionRequest(['image_id' => $id, 'decision' => $decision]);
+        if ($request->validate()) {
+            Yii::info("Decision received for image ID: $id with decision: $decision", __METHOD__);
+            $this->imageService->saveDecision($request->image_id, $request->decision);
         }
-        return $this->render('contact', [
-            'model' => $model,
-        ]);
-    }
 
-    /**
-     * Displays about page.
-     *
-     * @return string
-     */
-    public function actionAbout()
-    {
-        return $this->render('about');
+        return $this->redirect(['index']);
     }
 }

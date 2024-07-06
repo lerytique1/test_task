@@ -1,14 +1,11 @@
 <?php
 
+error_log('Loading DB configuration');
+
 return [
     'class' => 'yii\db\Connection',
-    'dsn' => 'mysql:host=localhost;dbname=yii2basic',
-    'username' => 'root',
-    'password' => '',
+    'dsn' => 'pgsql:host=postgres;dbname=' . getenv('POSTGRES_DB'),
+    'username' => getenv('POSTGRES_USER'),
+    'password' => getenv('POSTGRES_PASSWORD'),
     'charset' => 'utf8',
-
-    // Schema cache options (for production environment)
-    //'enableSchemaCache' => true,
-    //'schemaCacheDuration' => 60,
-    //'schemaCache' => 'cache',
 ];
